@@ -1,0 +1,179 @@
+# Single source of truth for paths and experiment settings.
+# All paths are relative to the repo root; code resolves them, nothing is hardcoded.
+
+seed: 42
+
+paths:
+  raw_data: data/raw/data_conf.xlsx
+  interim_dir: data/interim
+  processed_dir: data/processed
+  figures_dir: reports/figures
+  results_csv: reports/results.csv
+  per_label_csv: reports/per_label_metrics.csv  # long format, one row per experiment x label
+  manual_audit: reports/manual_audit.csv  # 50 sampled errors for hand labeling; never overwritten once filled
+  reports_dir: reports
+  report: reports/report.md
+
+data:
+  sheet: Hoja1
+  text_col: motivos
+  labels: [crec, cred, equ, inic, inv, mkt, "no", renta, sueldo, temp]  # "no" quoted: YAML 1.1 parses bare no as false
+  expected_rows: 6726            # stated in the brief; we observe 6,679 before recovering merged records
+  clean_file: clean.parquet      # written to paths.interim_dir
+  dropped_file: dropped.parquet  # every excluded row with its reason, for the report
+  gibberish:
+    min_chars: 3                 # shorter answers carry no intent
+    min_run: 4                   # runs of >= 4 identical chars ("GGGG", "....") are removed before scoring
+    min_letters: 3               # if fewer letters survive run removal, the text was only repetition
+    min_vowel_ratio: 0.15        # Spanish text is ~45% vowels; keyboard mashing ("mvdkmbskbml") is near 0
+
+# Branch behavior is fixed in src/intent/preprocess.py (stopwords, negations); only
+# the model is configurable. The lemma cache in processed_dir is keyed by a hash of both.
+preprocess:
+  tfidf_branch:
+    spacy_model: es_core_news_sm
+
+split:
+  test_size: 0.15                # fixed hold-out, touched once at the end
+  n_folds: 5                     # CV on the remaining 85% for selection and thresholds
+  folds_file: folds.parquet      # written to paths.processed_dir
+
+evaluation:
+  primary_metric: macro_f1
+  focus_label: temp
+  bootstrap:
+    n_resamples: 1000
+    ci: 0.95
+  baselines:
+    all_zeros_hamming: 0.115
+    company_hamming: 0.06821
+    company_avg_precision: 0.67
+
+models:
+  tfidf:
+    word_ngrams: [1, 2]
+    char_ngrams: [3, 5]
+    min_df: 2                    # a feature seen once cannot generalize across folds
+    sublinear_tf: true           # damp repeated words in long answers
+  logreg:
+    C: 1.0                       # baseline default; tuned later, not here
+    class_weight: balanced       # rare labels (temp 2.8%) would otherwise be ignored
+    max_iter: 2000
+  lgbm:                          # E7; small trees because positives for rare labels number ~150
+    num_leaves: 15
+    min_child_samples: 20
+    n_estimators: 300
+    learning_rate: 0.05
+    is_unbalance: true
+
+embeddings:
+  # Frozen encoders compared in E1 to E3. e5 was trained with "query: "/"passage: "
+  # prefixes; for symmetric similarity its authors recommend "query: " on both sides.
+  encoders:
+    e5:
+      model: intfloat/multilingual-e5-base
+      prefix: "query: "
+    mpnet:
+      model: sentence-transformers/paraphrase-multilingual-mpnet-base-v2
+      prefix: ""
+  # E3 macro F1 (CV): e5 0.601 vs mpnet 0.588; paired delta -0.013 for mpnet, e5 better in 97%
+  # of group-bootstrap draws (reports/paired_bootstrap_embeddings.csv). Later experiments use only this.
+  selected: e5
+  batch_size: 64
+  codebook: configs/codebook.yaml
+
+# Stage 1 of the two-stage model (src/intent/finetune.py).
+finetune:
+  model: intfloat/multilingual-e5-base
+  prefix: "query: "
+  max_length: 96                 # p95 answer is 35 words (~50 tokens); 96 truncates almost nothing
+  batch_size: 32
+  eval_batch_size: 128
+  epochs: 4
+  lr: 2.0e-5                     # written with a dot: PyYAML reads bare 2e-5 as a string
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  dropout: 0.1
+  pos_weight_cap: 10             # neg/pos reaches ~35 for temp; uncapped it destabilizes early steps
+  inner_val_size: 0.1            # early-stopping slice, carved from the training folds only
+  patience: 1                    # with 4 epochs, one non-improving epoch is enough evidence
+  grad_clip: 1.0
+  fp16: true                     # Turing (sm_75) has fp16 tensor cores but no bf16
+  freeze_word_embeddings: true   # 192M of 278M params; full fine-tuning runs out of memory on the 8 GB GPU
+  log_csv: reports/finetune_log.csv
+
+# Frozen final model. models.final_config() builds the final pipeline ONLY from this
+# section and refuses to run if it disagrees with the settings that produced the cached
+# artifacts (folds, lemma cache, fine-tune features, OOF scores). Evidence for the choice:
+# reports/ablation.md, reports/paired_bootstrap_final.csv, reports/paired_bootstrap_selection.csv.
+selected_model:
+  name: E9b
+  experiment: E9b_blend_B2_E4
+  selected_on: 2026-10-02
+  selection_basis: "5-fold grouped CV, macro F1 (paired group bootstrap)"
+  cv_macro_f1: 0.7152
+  # Truthful record: E9b was chosen on CV and written to this file (then as `selection`)
+  # at 15:12 on 2026-10-02; the single test evaluation ran at 15:37 the same day, recorded
+  # with config sha 1f3cf3b6c783 in reports/test_results.csv (that exact file, which already
+  # contained the E9b selection, is reconstructed byte for byte in reports/config_at_test_time.yaml
+  # and hashes to the same value). This section formalizes that
+  # choice after the test run; it does not predate it.
+  test_set_used: true
+  test_evaluated_on: 2026-10-02
+  test_results: reports/test_results.csv
+
+  seed: 42
+  split:                         # grouped by normalized text, iterative stratification
+    test_size: 0.15
+    n_folds: 5
+
+  # Component 1, stage 1: fine-tuned e5 head probabilities (E4).
+  # Architecture (fixed in finetune.py): mean pooling, dropout, linear head, sigmoid;
+  # BCEWithLogitsLoss with pos_weight neg/pos capped; AdamW (fused) without decay on
+  # bias/LayerNorm; linear warmup; early stopping on inner-val macro PR-AUC. OOF: one
+  # fine-tune per CV fold; test: one fine-tune on all non-test rows.
+  finetuned_head:
+    model: intfloat/multilingual-e5-base
+    prefix: "query: "
+    max_length: 96
+    batch_size: 32
+    eval_batch_size: 128
+    epochs: 4
+    lr: 2.0e-5
+    weight_decay: 0.01
+    warmup_ratio: 0.1
+    dropout: 0.1
+    pos_weight_cap: 10
+    inner_val_size: 0.1
+    patience: 1
+    grad_clip: 1.0
+    fp16: true
+    freeze_word_embeddings: true
+
+  # Component 2: B2, TF-IDF + logistic regression, binary relevance, on the lemmatized
+  # branch (spaCy lemmas, accents stripped except n-tilde, custom stopwords, negations kept).
+  tfidf_lr:
+    spacy_model: es_core_news_sm
+    tfidf:
+      word_ngrams: [1, 2]
+      char_ngrams: [3, 5]        # char_wb
+      min_df: 2
+      sublinear_tf: true
+    logreg:
+      C: 1.0
+      class_weight: balanced
+      max_iter: 2000
+      solver: liblinear          # fixed in models._logreg; validated, not configurable
+
+  # Stage 2 of E9b is a plain blend: no classifier is trained on stage-1 features.
+  blend:
+    weight_on_finetuned_head: 0.5   # deployment weight, fitted on all CV OOF rows
+    weight_grid: [0.0, 1.0, 0.05]   # start, stop, step
+    method: "grid weight maximizing macro F1 after per-label threshold tuning; cross-fitted per fold for the CV estimate, refit on all CV OOF rows for deployment"
+  thresholds:
+    method: per_label_f1_max     # exact optimum on the precision-recall curve
+    fit_on: "CV out-of-fold blend scores at the deployment weight; never test"
+  decoding:
+    at_least_one: true
+    fallback: argmax
+    no_exclusive: true

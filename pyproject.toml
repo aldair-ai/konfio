@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intent"
+version = "0.1.0"
+description = "Multi-label classification of loan use-of-proceeds answers (Konfio DS exercise)."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "openpyxl>=3.1",            # reads the raw .xlsx
+    "pyarrow>=15",              # parquet for interim artifacts (keeps dtypes, unlike csv)
+    "pyyaml>=6.0",
+    "ftfy>=6.1",                # mojibake repair (about 42% of rows)
+    "spacy>=3.7,<4",            # lemmatization branch; model es_core_news_sm installed separately
+    "scikit-learn>=1.4",
+    "iterative-stratification>=0.1.7",  # provides iterstrat.MultilabelStratifiedKFold
+    "lightgbm>=4.3",
+    "sentence-transformers>=2.7",
+    "setfit>=1.0",
+    "cleanlab>=2.6",            # label-noise audit (58 conflicting duplicate groups)
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "jupyter>=1.0",
+    "nbconvert>=7.16",
+    "ipykernel>=6.29",
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

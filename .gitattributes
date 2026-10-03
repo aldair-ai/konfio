@@ -1,0 +1,5 @@
+# Byte-exact snapshot: its SHA-1 must keep matching the config_sha in reports/test_results.csv,
+# so git must never convert its (mixed) line endings.
+reports/config_at_test_time.yaml -text
+# Second input of the same hash (models._config_digest hashes base.yaml + codebook.yaml).
+configs/codebook.yaml -text

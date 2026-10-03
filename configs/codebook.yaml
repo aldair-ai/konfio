@@ -1,0 +1,60 @@
+# Label descriptions used for codebook-similarity features (features.codebook_similarity).
+# Written from the codebook definitions only, never copied from the dataset, so the
+# features carry prior knowledge and cannot leak labels from any split.
+# inv is not defined in the codebook; we assume "buy inventory or merchandise".
+# temp covers both readings found in the data: seasonal demand and financing the
+# receivables or payment cycle (only 21% of temp rows mention a season).
+
+crec:
+  - hacer crecer el negocio
+  - ampliar y expandir la empresa
+  - capital de trabajo para el crecimiento general del negocio
+  - invertir en el crecimiento de la empresa sin un destino específico
+cred:
+  - pagar deudas y créditos
+  - liquidar préstamos con otras instituciones financieras
+  - pagar tarjetas de crédito
+  - refinanciar o consolidar deudas caras
+equ:
+  - comprar maquinaria y equipo para el negocio
+  - adquirir herramientas de trabajo
+  - comprar un vehículo o camioneta de trabajo
+  - comprar equipo de cómputo y tecnología
+  - renovar o reparar maquinaria
+inic:
+  - iniciar un negocio nuevo
+  - abrir mi propio negocio
+  - emprender un proyecto desde cero
+  - poner un negocio por primera vez
+inv:
+  - comprar mercancía para vender
+  - surtir el inventario
+  - comprar materia prima e insumos
+  - abastecer la tienda de productos
+mkt:
+  - invertir en publicidad y marketing
+  - promoción del negocio en redes sociales
+  - campañas publicitarias para atraer clientes
+  - desarrollar la página web y la imagen de marca
+"no":
+  - gastos personales o familiares
+  - pagar la escuela de mis hijos
+  - gastos médicos o una emergencia familiar
+  - remodelar mi casa o comprar un auto para uso personal
+  - viajes y vacaciones
+renta:
+  - pagar la renta del local
+  - rentar un local u oficina
+  - pagar el alquiler del establecimiento
+  - depósito y renta de una bodega
+sueldo:
+  - pagar la nómina de los empleados
+  - pagar sueldos y salarios
+  - contratar más personal
+  - pagar aguinaldos y prestaciones a los trabajadores
+temp:
+  - prepararme para la temporada alta de ventas
+  - comprar mercancía para la temporada navideña o de fin de año
+  - financiar el ciclo de cobranza mientras los clientes me pagan
+  - cubrir gastos mientras cobro facturas a 30, 60 o 90 días
+  - capital para cumplir un pedido o contrato grande mientras recibo el pago

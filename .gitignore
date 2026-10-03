@@ -1,0 +1,17 @@
+# Data is confidential; never commit it.
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+
+__pycache__/
+*.egg-info/
+.venv/
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+models/
+
+# Applicant text outside data/: a full copy of the dataset and the hand-labeling sample.
+intent.csv
+reports/manual_audit.csv
