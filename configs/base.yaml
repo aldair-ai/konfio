@@ -11,6 +11,8 @@ paths:
   results_csv: reports/results.csv
   per_label_csv: reports/per_label_metrics.csv  # long format, one row per experiment x label
   manual_audit: reports/manual_audit.csv  # 50 sampled errors for hand labeling; never overwritten once filled
+  serving_dir: models/e9b        # serving artifacts (gitignored): trainable weights, tokenizer, B2, manifest
+  latency_csv: reports/latency.csv
   reports_dir: reports
   report: reports/report.md
 
@@ -177,3 +179,11 @@ selected_model:
     at_least_one: true
     fallback: argmax
     no_exclusive: true
+
+# Deployment policy for src/intent/serve.py (not part of the frozen model).
+serving:
+  review_margin: 0.1             # needs_review if any blended probability is within this of its threshold
+  review_labels: [cred, "no"]    # risk signals (refinancing, personal use): always routed to a human
+  latency_requests: 200
+  latency_warmup: 10             # first requests pay lazy-init costs; excluded from p50/p95
+  max_batch: 1000                # POST /predict_batch and the demo's Batch tab

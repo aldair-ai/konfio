@@ -1,0 +1,3 @@
+model,requests,p50_ms,p95_ms,mean_ms,device,cpu,logical_cores,torch_threads,timestamp
+E9b (selected),200,31.7,47.6,33.3,cpu,"Intel64 Family 6 Model 165 Stepping 2, GenuineIntel",16,8,2026-10-04T22:22:38+00:00
+B2 (fallback),200,5.3,6.6,5.4,cpu,"Intel64 Family 6 Model 165 Stepping 2, GenuineIntel",16,8,2026-10-04T22:22:38+00:00

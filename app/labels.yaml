@@ -1,0 +1,12 @@
+# Short Spanish descriptions from the brief's codebook (appendix A). inv is not in the
+# codebook: its description is the project's documented assumption.
+crec: "Crecimiento, sin un uso específico"
+cred: "Pagar deudas"
+equ: "Comprar equipo"
+inic: "Iniciar un negocio"
+inv: "Inventario o mercancía (supuesto; no está en el codebook)"
+mkt: "Marketing"
+"no": "Uso no destinado a capital de trabajo"
+renta: "Renta"
+sueldo: "Nómina"
+temp: "Ventas de temporada"

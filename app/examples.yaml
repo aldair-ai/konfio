@@ -1,0 +1,41 @@
+# The only dataset texts shipped with the demo: six rows from the held-out TEST set
+# (never used for training), chosen to illustrate one behavior each. `annotated` is the
+# label set given by the original annotators; `source_row` traces the row back to
+# data/raw/data_conf.xlsx. The explanation is shown under the result in the "Try it" tab.
+examples:
+  - id: single
+    button: "Intención única"
+    source_row: 1847
+    text: "Invertiré en equipo de transporte tractocamion"
+    annotated: [equ]
+    explanation: "Un solo uso explícito (un vehículo de trabajo): ambos modelos predicen equ con alta confianza y no hace falta revisión."
+  - id: multiple
+    button: "Varias intenciones"
+    source_row: 1289
+    text: "Compra de inventario publicidad y capacitacion"
+    annotated: [inv, mkt]
+    explanation: "Dos usos en una sola frase (inventario y publicidad): el modelo marca ambos, inv y mkt, igual que la anotación."
+  - id: temp
+    button: "Ambigüedad temp"
+    source_row: 4788
+    text: "comprar cobija y cobertor para la temporada invernal"
+    annotated: [inv]
+    explanation: "Compra de temporada: la anotación dice solo inv, el modelo agrega temp y ambas probabilidades quedan cerca de su umbral, así que va a revisión. Es la frontera inv/temp que el codebook no resuelve."
+  - id: personal
+    button: "Uso personal (no)"
+    source_row: 4232
+    text: "Quiero irme de vacaciones en mayo"
+    annotated: ["no"]
+    explanation: "Consumo personal (vacaciones), no capital de trabajo: no es una señal de riesgo, así que siempre se envía a revisión humana."
+  - id: cred
+    button: "Riesgo cred"
+    source_row: 1102
+    text: "transferir otro crédito que está muy caro"
+    annotated: [cred]
+    explanation: "Refinanciar un crédito caro: cred es una señal de riesgo y siempre se revisa. B2, además, queda indeciso con crec cerca de su umbral."
+  - id: e9b_vs_b2
+    button: "E9b acierta, B2 no"
+    source_row: 6105
+    text: "En ampliar mi negocio comprando maquinaria"
+    annotated: [equ]
+    explanation: "B2 agrega crec por las palabras 'ampliar negocio'; E9b entiende que el uso concreto es maquinaria (equ), como en la anotación."

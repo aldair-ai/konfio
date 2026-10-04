@@ -5,7 +5,7 @@
 PYTHON ?= python
 NBEXEC = $(PYTHON) -m jupyter nbconvert --to notebook --execute --inplace
 
-.PHONY: data eda train evaluate
+.PHONY: data eda train evaluate serve demo
 
 data:      ## Load raw xlsx, recover merged records, clean, build splits
 	$(PYTHON) -m intent.data
@@ -31,3 +31,17 @@ evaluate:  ## Single final evaluation on the held-out test set, then error analy
 	$(PYTHON) -m intent.models test
 	$(NBEXEC) notebooks/04_evaluation.ipynb
 	$(NBEXEC) notebooks/05_error_analysis.ipynb
+
+# Must match paths.serving_dir in configs/base.yaml (comment on its own line: make keeps
+# whitespace before an inline # as part of the value).
+SERVING_DIR := models/e9b
+
+serve: $(SERVING_DIR)/manifest.json  ## Serve the frozen selected model: POST http://127.0.0.1:8000/predict
+	$(PYTHON) -m uvicorn intent.serve:app --host 127.0.0.1 --port 8000
+
+# Built once (needs a CUDA GPU): stage 1 rebuilt from selected_model, B2 refit, frozen thresholds.
+$(SERVING_DIR)/manifest.json:
+	$(PYTHON) -m intent.models package
+
+demo: $(SERVING_DIR)/manifest.json  ## Interview demo: API on :8000 + Streamlit on http://localhost:8501, offline, CPU
+	$(PYTHON) app/run_demo.py

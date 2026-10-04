@@ -47,7 +47,7 @@ from intent.evaluate import (
     summary_metrics,
 )
 from intent.features import codebook_similarity, embed, tfidf_union
-from intent.finetune import load_finetune_features
+from intent.finetune import load_finetune_features, train_final_model
 from intent.split import TEST_FOLD, load_split_frame
 
 ModelFactory = Callable[[], BaseEstimator]
@@ -782,6 +782,40 @@ def run_test_evaluation(cfg: dict[str, Any] | None = None, force: bool = False) 
             "thresholds": {n: dict(zip(labels, np.round(t, 4))) for n, (_, t) in systems.items()}}
 
 
+def package_selected_model(cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Write the serving artifacts of the frozen selected model to paths.serving_dir.
+
+    - trainable.safetensors + tokenizer/: stage 1 rebuilt with the "test" job's rows and
+      settings; frozen weights are reloaded from the pretrained base model.
+    - b2.joblib: B2 refit on all non-test rows, as in the test evaluation.
+    - manifest.json: blend weight, decoding rules, and the frozen thresholds for E9b and
+      for B2 (the fallback model), all from CV out-of-fold scores, never from test.
+    Returns the manifest.
+    """
+    import joblib
+
+    cfg, sm = final_config(cfg)
+    labels = cfg["data"]["labels"]
+    out = resolve(cfg["paths"]["serving_dir"])
+    info = train_final_model(cfg, out)
+
+    cv, y, _, _ = _cv_frame(cfg)
+    joblib.dump(tfidf_lr_br(cfg)().fit(cv["text_tfidf"], y), out / "b2.joblib")
+    b2_thresholds = tune_thresholds(y, load_oof(REFERENCE, cv, cfg))
+    manifest = {
+        "name": sm["name"], "experiment": sm["experiment"], "labels": labels,
+        "blend_weight_on_finetuned_head": float(sm["blend"]["weight_on_finetuned_head"]),
+        "decoding": sm["decoding"],
+        "thresholds": {k: float(v) for k, v in frozen_thresholds(cfg).items()},
+        "fallback_b2_thresholds": dict(zip(labels, map(float, b2_thresholds))),
+        "finetuned_head": {k: sm["finetuned_head"][k] for k in ("model", "prefix", "max_length", "dropout")},
+        "stage1_training": {k: (v if not isinstance(v, float) else round(v, 5)) for k, v in info.items()},
+        "config_sha": _config_digest(cfg),
+    }
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str), encoding="utf-8")
+    return manifest
+
+
 def error_analysis_data(cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     """CV rows with given labels and OOF scores and predictions for E9b (selected), E4 and B2.
 
@@ -861,6 +895,9 @@ if __name__ == "__main__":
         title = (f"Blending TF-IDF with fine-tuned e5 gives the best CV macro F1: "
                  f"{res.loc[selected, 'macro_f1']:.3f} vs {res.loc[REFERENCE, 'macro_f1']:.3f}")
         print(f"{len(build_ablation(selected, title, config))} rows -> reports/ablation.md, reports/figures/ablation.png")
+    if "package" in sys.argv[1:]:
+        m = package_selected_model()
+        print(json.dumps({k: m[k] for k in ("name", "experiment", "stage1_training", "config_sha")}, indent=2))
     if "test" in sys.argv[1:]:
         out = run_test_evaluation()
         res = out["results"]
@@ -874,7 +911,7 @@ if __name__ == "__main__":
                              "p_b_not_better"]].round(4).to_string())
         print()
         print(json.dumps(out["thresholds"], default=float))
-    if {"codebook", "leakage", "cdiag", "twostage", "final", "ablation", "test"} & set(sys.argv[1:]):
+    if {"codebook", "leakage", "cdiag", "twostage", "final", "ablation", "test", "package"} & set(sys.argv[1:]):
         sys.exit()
     if "compare" in sys.argv[1:]:
         table = run_decode_comparisons()

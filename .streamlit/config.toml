@@ -1,0 +1,13 @@
+# Offline demo: no usage statistics, and bound to localhost. Binding to an explicit
+# address also stops Streamlit from looking up the machine's public IP (a network call)
+# and from exposing the demo on the local network.
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"
+
+[server]
+headless = true
+address = "127.0.0.1"
+
+[client]
+toolbarMode = "minimal"   # hides the Deploy button (it links to Streamlit Cloud)

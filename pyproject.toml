@@ -23,6 +23,11 @@ dependencies = [
     "setfit>=1.0",
     "cleanlab>=2.6",            # label-noise audit (58 conflicting duplicate groups)
     "matplotlib>=3.8",
+    "fastapi>=0.110",           # serving: POST /predict (src/intent/serve.py)
+    "uvicorn>=0.30",
+    "joblib>=1.3",              # serving artifact for B2
+    "streamlit>=1.36",          # interview demo (app/demo.py)
+    "httpx>=0.27",              # demo -> API client; also used by fastapi TestClient
 ]
 
 [project.optional-dependencies]

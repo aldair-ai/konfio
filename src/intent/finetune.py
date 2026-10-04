@@ -50,9 +50,10 @@ from intent.split import ROW_KEY, TEST_FOLD, group_labels, load_split_frame
 class E5Classifier(nn.Module):
     """Encoder + mean pooling + dropout + linear head; forward returns (pooled, logits)."""
 
-    def __init__(self, model_name: str, n_labels: int, dropout: float) -> None:
+    def __init__(self, model_name: str, n_labels: int, dropout: float, local_files_only: bool = False) -> None:
         super().__init__()
-        self.encoder = AutoModel.from_pretrained(model_name)
+        # local_files_only: serving must run offline, from the Hugging Face cache only
+        self.encoder = AutoModel.from_pretrained(model_name, local_files_only=local_files_only)
         self.dropout = nn.Dropout(dropout)
         self.head = nn.Linear(self.encoder.config.hidden_size, n_labels)
 
@@ -349,3 +350,69 @@ def load_finetune_features(
 
 if __name__ == "__main__":
     build_finetune_features()
+
+
+TRAINABLE_FILE = "trainable.safetensors"
+
+
+def save_trainable(model: nn.Module, path: Path) -> None:
+    """Save only the parameters training could change, via pinned per-tensor copies.
+
+    Frozen weights (the word-embedding matrix) equal the pretrained ones, so they are
+    reloaded from the base model instead of saved. Copying tensor by tensor into pinned
+    host memory avoids the large pageable device-to-host copy that crashes this
+    torch/driver combination after training (see _snapshot); save_pretrained does that copy.
+    """
+    from safetensors.torch import save_file
+
+    host = {}
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            buf = torch.empty(param.shape, dtype=param.dtype, pin_memory=True)
+            buf.copy_(param.detach())
+            host[name] = buf
+    torch.cuda.synchronize()
+    save_file(host, str(path))
+
+
+def load_trainable(model: nn.Module, path: Path) -> None:
+    """Overlay saved trainable parameters on a model built from the pretrained base.
+
+    Refuses if any parameter other than a frozen one would keep its pretrained value,
+    so a partial or mismatched file cannot load silently.
+    """
+    from safetensors.torch import load_file
+
+    state = load_file(str(path))
+    missing, unexpected = model.load_state_dict(state, strict=False)
+    params = dict(model.named_parameters())
+    missing_params = {k for k in missing if k in params}
+    allowed = {"encoder.embeddings.word_embeddings.weight"}  # frozen during training
+    if unexpected or missing_params - allowed:
+        raise ValueError(f"trainable file mismatch: unexpected {unexpected}, missing {sorted(missing_params - allowed)}")
+
+
+def train_final_model(cfg: dict[str, Any], out_dir: Path) -> dict[str, Any]:
+    """Rebuild the "test" job's stage-1 model for serving and save its weights.
+
+    Same rows (all non-test rows minus the same inner early-stopping slice), same seed
+    and settings as the model whose head probabilities were evaluated on test. The
+    evaluation runs kept only features, so this is the first saved copy; GPU training
+    is not bit-exact, so it is checked against the cached test features, without labels.
+    """
+    labels = cfg["data"]["labels"]
+    frame = load_split_frame(cfg)
+    train_mask, _ = finetune_jobs(frame["fold"].to_numpy(), cfg["split"]["n_folds"])["test"]
+    train_frame = frame[train_mask].reset_index(drop=True)
+    tr_idx, val_idx = inner_split(train_frame, labels, cfg)
+    y = train_frame[labels].to_numpy()
+    texts = train_frame["text_transformer"].tolist()
+    model, tok, info = fine_tune(
+        [texts[i] for i in tr_idx], y[tr_idx], [texts[i] for i in val_idx], y[val_idx], cfg
+    )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    save_trainable(model, out_dir / TRAINABLE_FILE)
+    tok.save_pretrained(out_dir / "tokenizer")
+    del model
+    torch.cuda.empty_cache()
+    return {**info, "n_train": len(tr_idx), "n_inner_val": len(val_idx)}
