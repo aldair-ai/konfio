@@ -45,3 +45,26 @@ def test_primary_category_follows_priority_and_correct_rows_are_excluded() -> No
     out = categorize_errors(texts, tfidf, y, p, issues, LABELS)
     assert out["primary"].tolist() == ["very short or vague", "multiple intents", "temp ambiguity"]
     assert out.loc[2, "temp_reading"] == "season"
+
+
+def test_wilson_interval_known_values() -> None:
+    from intent.evaluate import wilson_interval
+
+    lo, hi = wilson_interval(0, 10)
+    assert lo == 0.0 and abs(hi - 0.2775) < 1e-3
+    lo, hi = wilson_interval(5, 10)
+    assert abs(lo - 0.2366) < 1e-3 and abs(hi - 0.7634) < 1e-3
+
+
+def test_audit_agreement_maps_model_error_and_rejects_unknown_labels() -> None:
+    import pytest
+
+    from intent.evaluate import audit_agreement
+
+    audit = pd.DataFrame({"assigned_category": ["other", "multiple intents", "temp ambiguity"],
+                          "manual_category": ["model_error", "multiple intents", "likely label error"]})
+    out = audit_agreement(audit)
+    assert out["agreement"] == 2 / 3 and out["strict_agreement"] == 1 / 3
+    assert out["confusion"].loc["other", "other"] == 1
+    with pytest.raises(ValueError):
+        audit_agreement(audit.assign(manual_category=["typo", "multiple intents", "other"]))

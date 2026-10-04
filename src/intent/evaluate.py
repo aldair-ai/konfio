@@ -728,3 +728,68 @@ def export_manual_audit(
     path.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(path, index=False, encoding="utf-8-sig")
     return out
+
+
+# ----------------------------------------------------------------------------- manual audit
+# The audit instructions defined "other" as "text clear, label correct, model simply wrong";
+# the hand labels call that case model_error, so the two names denote the same category.
+MANUAL_ALIASES = {"model_error": "other"}
+
+
+def wilson_interval(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score interval for a proportion: stays inside [0, 1] and behaves at k = 0 or
+    small n, where the normal approximation does not (50 audited rows, some cells near 0)."""
+    if n == 0:
+        return (float("nan"), float("nan"))
+    p = k / n
+    denom = 1 + z**2 / n
+    center = (p + z**2 / (2 * n)) / denom
+    half = z * np.sqrt(p * (1 - p) / n + z**2 / (4 * n**2)) / denom
+    return (max(0.0, center - half), min(1.0, center + half))
+
+
+def _manual(audit: pd.DataFrame) -> pd.Series:
+    return audit["manual_category"].astype(str).str.strip().replace(MANUAL_ALIASES)
+
+
+def audit_agreement(audit: pd.DataFrame) -> dict[str, Any]:
+    """Heuristic (assigned_category) vs hand label: confusion matrix, agreement, Cohen's kappa.
+
+    Kappa corrects agreement for chance, which matters here because one category
+    (multiple intents) holds most rows: always guessing it would already agree often.
+    strict_agreement compares the raw strings, before mapping model_error to other.
+    """
+    from sklearn.metrics import cohen_kappa_score
+
+    manual, heur = _manual(audit), audit["assigned_category"].astype(str)
+    unknown = set(manual) - set(CATEGORY_ORDER)
+    if unknown:
+        raise ValueError(f"manual_category has values outside the categories: {sorted(unknown)}")
+    cats = [c for c in CATEGORY_ORDER if c in set(manual) | set(heur)]
+    confusion = pd.crosstab(heur, manual).reindex(index=cats, columns=cats, fill_value=0)
+    confusion.index.name, confusion.columns.name = "heuristic", "manual"
+    return {
+        "n": len(audit),
+        "confusion": confusion,
+        "agreement": float((manual == heur).mean()),
+        "strict_agreement": float((audit["manual_category"].astype(str).str.strip() == heur).mean()),
+        "kappa": float(cohen_kappa_score(heur, manual)),
+    }
+
+
+def audit_distribution(audit: pd.DataFrame, errors: pd.DataFrame) -> pd.DataFrame:
+    """Hand-labeled shares with 95% Wilson intervals, next to the heuristic primary shares
+    in the same 50 rows and over all errors (the population the sample was drawn from)."""
+    manual, n = _manual(audit), len(audit)
+    rows = {}
+    for cat in CATEGORY_ORDER:
+        k = int((manual == cat).sum())
+        lo, hi = wilson_interval(k, n)
+        rows[cat] = {
+            "manual n": k, "manual share": k / n, "wilson low": lo, "wilson high": hi,
+            "heuristic share (same 50)": float((audit["assigned_category"] == cat).mean()),
+            "heuristic primary share (all errors)": float((errors["primary"] == cat).mean()),
+        }
+    table = pd.DataFrame(rows).T
+    table["manual n"] = table["manual n"].astype(int)
+    return table.rename(index={"other": "other (manual: model_error)"}).round(3)
