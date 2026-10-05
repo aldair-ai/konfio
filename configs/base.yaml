@@ -187,22 +187,3 @@ serving:
   latency_requests: 200
   latency_warmup: 10             # first requests pay lazy-init costs; excluded from p50/p95
   max_batch: 1000                # POST /predict_batch and the demo's Batch tab
-
-# Spanish interview deck (src/intent/deck.py, src/intent/deck_figures.py). The report's
-# English figures in paths.figures_dir are never overwritten by the deck build.
-deck:
-  template: assets/template.pptx
-  figures_dir: reports/figures/deck
-  konfio_figures_dir: reports/figures/deck_konfio   # six figures in the Konfio palette, half-slide size
-  template_inspection: reports/template_inspection.md
-  dpi: 200                       # 12 in wide figures -> ~2400 px, sharp on a projector
-  outline: reports/slides_outline_es.md   # the build reads titles, layouts, tables and notes from here
-  output: reports/deck/clasificacion_motivos_credito.pptx
-  png_dir: reports/deck/png      # one PNG per slide, rendered from the PDF, for visual review
-  png_dpi: 110                   # 13.33 in -> ~1470 px wide: enough to read 10 pt table text
-  # LibreOffice for the PDF copy: first entry found on PATH or on disk wins.
-  soffice: [soffice, "C:/Program Files/LibreOffice/program/soffice.com"]
-  # Walbaum Display (theme heading font) is an Office cloud font LibreOffice cannot see; the PDF
-  # export maps it to the closest installed Didone instead of a generic fallback.
-  pdf_font_substitutes:
-    Walbaum Display: Bodoni MT

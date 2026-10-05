@@ -15,3 +15,19 @@ models/
 # Applicant text outside data/: a full copy of the dataset and the hand-labeling sample.
 intent.csv
 reports/manual_audit.csv
+
+# Interview deck tooling: kept locally to rebuild the slides, not part of the deliverable repo.
+assets/
+configs/deck.yaml
+reports/deck/
+reports/figures/deck/
+reports/figures/deck_konfio/
+reports/glossary_es.md
+reports/slides_outline_es.md
+reports/template_inspection.md
+src/intent/deck.py
+src/intent/deck_figures.py
+src/intent/deck_figures_konfio.py
+src/intent/plot_style.py
+tests/test_deck.py
+app/screenshot.py

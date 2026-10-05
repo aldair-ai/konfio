@@ -45,16 +45,6 @@ or `python -m intent.models package`).
 
 ![Demo: Probar tab](reports/figures/demo.png)
 
-`python app/screenshot.py` retakes this screenshot (and the deck's) from the running demo.
-
-## Interview deck
-
-`make deck` builds `reports/deck/clasificacion_motivos_credito.pptx` (Spanish, on `assets/template.pptx`)
-from `reports/slides_outline_es.md`, exports a PDF copy with LibreOffice headless, renders one PNG per
-slide to `reports/deck/png/` and checks that no English (beyond the glossary's technical terms) or em
-dash is left. Deck figures live in `reports/figures/deck/`; wording follows `reports/glossary_es.md`. Six of them are also drawn in the Konfio palette at half-slide size in
-`reports/figures/deck_konfio/` (`python -m intent.deck_figures_konfio`).
-
 ## Results
 
 - Selected model (E9b): 0.5 x fine-tuned multilingual-e5-base head + 0.5 x TF-IDF logistic regression; CV macro F1 0.715 [0.703, 0.727].
