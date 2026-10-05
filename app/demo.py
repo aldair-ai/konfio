@@ -1,7 +1,7 @@
 """Interview demo: a Streamlit front end for the loan intent API (src/intent/serve.py).
 
 Predictions come only from the API (INTENT_API_URL, default http://localhost:8000), so
-the demo shows exactly what the deployed model returns. The Results tab reads aggregate
+the demo shows exactly what the deployed model returns. The Resultados tab reads aggregate
 numbers from reports/, never from code. Works offline: no CDN, no remote calls (the
 mermaid diagram is converted to Graphviz, which Streamlit renders locally).
 
@@ -76,16 +76,27 @@ def probability_chart(probs: dict[str, float], thresholds: dict[str, float], pre
     y = alt.Y("name:N", sort=None, title=None, axis=alt.Axis(labelLimit=330, labelFontSize=12))
     tooltip = ["label", alt.Tooltip("probabilidad:Q", format=".3f"), alt.Tooltip("umbral:Q", format=".3f"), "predicha"]
     bars = alt.Chart(df).mark_bar(size=14, cornerRadiusEnd=3).encode(
-        x=alt.X("probabilidad:Q", scale=alt.Scale(domain=[0, 1]), title="probabilidad (marca negra = umbral)"),
+        x=alt.X("probabilidad:Q", scale=alt.Scale(domain=[0, 1]), title="probabilidad (marca = umbral)"),
         y=y, color=alt.condition("datum.predicha", alt.value(ACCENT), alt.value(NEUTRAL)), tooltip=tooltip,
     )
     ticks = alt.Chart(df).mark_tick(color=INK, thickness=2, size=22).encode(x="umbral:Q", y=y, tooltip=tooltip)
     return (bars + ticks).properties(height=34 * len(LABELS))
 
 
+# The API keeps machine-readable English reasons (tests/test_serve.py); the demo shows them in Spanish.
+REASON_ES = {"close to threshold: ": "cerca del umbral: ", "risk label: ": "etiqueta de riesgo: "}
+
+
+def reason_es(reason: str) -> str:
+    for en, es in REASON_ES.items():
+        if reason.startswith(en):
+            return es + reason[len(en):]
+    return reason
+
+
 def review_badge(needs_review: bool, reasons: list[str]) -> None:
     if needs_review:
-        st.warning("**Requiere revisión humana**: " + " · ".join(reasons))
+        st.warning("**Requiere revisión humana**: " + " · ".join(map(reason_es, reasons)))
     else:
         st.success("**Sin revisión**: confianza suficiente y sin etiquetas de riesgo")
 
@@ -195,7 +206,7 @@ def tab_batch() -> None:
     rows = out.index[valid]
     out.loc[rows, "etiquetas"] = [", ".join(p["labels"]) for p in preds]
     out.loc[rows, "needs_review"] = [p["needs_review"] for p in preds]
-    out.loc[rows, "motivos_revision"] = [" | ".join(p["review_reasons"]) for p in preds]
+    out.loc[rows, "motivos_revision"] = [" | ".join(map(reason_es, p["review_reasons"])) for p in preds]
     for lab in LABELS:
         out.loc[rows, f"p_{lab}"] = [p["probabilities"][lab] for p in preds]
     if (~valid).any():
@@ -258,7 +269,7 @@ if health is None:
     st.error(f"No hay conexión con la API en {API_URL}. Inicia todo con `python app/run_demo.py`.")
     st.stop()
 st.caption(f"API: {API_URL} · modelo {health['model']} · CPU · sin conexión a internet")
-try_it, results, batch, how = st.tabs(["Try it", "Results", "Batch", "How it works"])
+try_it, results, batch, how = st.tabs(["Probar", "Resultados", "Lote", "Cómo funciona"])
 with try_it:
     tab_try()
 with results:

@@ -5,7 +5,7 @@
 PYTHON ?= python
 NBEXEC = $(PYTHON) -m jupyter nbconvert --to notebook --execute --inplace
 
-.PHONY: data eda train evaluate serve demo
+.PHONY: data eda train evaluate serve demo deck
 
 data:      ## Load raw xlsx, recover merged records, clean, build splits
 	$(PYTHON) -m intent.data
@@ -42,6 +42,12 @@ serve: $(SERVING_DIR)/manifest.json  ## Serve the frozen selected model: POST ht
 # Built once (needs a CUDA GPU): stage 1 rebuilt from selected_model, B2 refit, frozen thresholds.
 $(SERVING_DIR)/manifest.json:
 	$(PYTHON) -m intent.models package
+
+deck:      ## Spanish deck from reports/slides_outline_es.md: figures, .pptx, PDF (LibreOffice), PNGs, language check
+	# The demo screenshot is taken from the running demo: python app/screenshot.py
+	$(PYTHON) -m intent.deck_figures
+	$(PYTHON) -m intent.deck_figures_konfio
+	$(PYTHON) -m intent.deck all
 
 demo: $(SERVING_DIR)/manifest.json  ## Interview demo: API on :8000 + Streamlit on http://localhost:8501, offline, CPU
 	$(PYTHON) app/run_demo.py

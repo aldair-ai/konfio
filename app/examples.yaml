@@ -1,7 +1,7 @@
 # The only dataset texts shipped with the demo: six rows from the held-out TEST set
 # (never used for training), chosen to illustrate one behavior each. `annotated` is the
 # label set given by the original annotators; `source_row` traces the row back to
-# data/raw/data_conf.xlsx. The explanation is shown under the result in the "Try it" tab.
+# data/raw/data_conf.xlsx. The explanation is shown under the result in the "Probar" tab.
 examples:
   - id: single
     button: "Intención única"

@@ -37,13 +37,23 @@ python app/run_demo.py      # or: make demo
 ```
 
 Starts the API (loads the frozen model once, CPU, offline) and a Streamlit app at
-http://localhost:8501 with four tabs: **Try it** (six test-set examples, per-label probabilities
-against thresholds, review reasons, E9b vs B2 with B2's top contributing terms, latency),
-**Results** (read from `reports/`), **Batch** (CSV with a `motivos` column, up to 1,000 rows,
-downloadable predictions) and **How it works**. Needs `models/e9b` (built once by `make serve`
+http://localhost:8501 with four tabs, in Spanish like the rest of the UI: **Probar** (six test-set
+examples, per-label probabilities against thresholds, review reasons, E9b vs B2 with B2's top
+contributing terms, latency), **Resultados** (read from `reports/`), **Lote** (CSV with a `motivos`
+column, up to 1,000 rows, downloadable predictions) and **Cómo funciona**. Needs `models/e9b` (built once by `make serve`
 or `python -m intent.models package`).
 
-![Demo: Try it tab](reports/figures/demo.png)
+![Demo: Probar tab](reports/figures/demo.png)
+
+`python app/screenshot.py` retakes this screenshot (and the deck's) from the running demo.
+
+## Interview deck
+
+`make deck` builds `reports/deck/clasificacion_motivos_credito.pptx` (Spanish, on `assets/template.pptx`)
+from `reports/slides_outline_es.md`, exports a PDF copy with LibreOffice headless, renders one PNG per
+slide to `reports/deck/png/` and checks that no English (beyond the glossary's technical terms) or em
+dash is left. Deck figures live in `reports/figures/deck/`; wording follows `reports/glossary_es.md`. Six of them are also drawn in the Konfio palette at half-slide size in
+`reports/figures/deck_konfio/` (`python -m intent.deck_figures_konfio`).
 
 ## Results
 

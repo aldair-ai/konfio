@@ -28,6 +28,7 @@ dependencies = [
     "joblib>=1.3",              # serving artifact for B2
     "streamlit>=1.36",          # interview demo (app/demo.py)
     "httpx>=0.27",              # demo -> API client; also used by fastapi TestClient
+    "python-pptx>=1.0",         # interview deck built on assets/template.pptx (src/intent/deck.py)
 ]
 
 [project.optional-dependencies]
@@ -37,6 +38,8 @@ dev = [
     "ipykernel>=6.29",
     "pytest>=8.0",
     "ruff>=0.4",
+    "pymupdf>=1.24",            # renders the deck's PDF copy to PNG for visual review
+    "playwright>=1.40",         # app/screenshot.py drives the installed Edge (no browser download)
 ]
 
 [tool.setuptools.packages.find]
